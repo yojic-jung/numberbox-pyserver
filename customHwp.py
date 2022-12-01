@@ -12,7 +12,8 @@ import base64
 from os import remove
 from datetime import datetime
 import random
-
+import shutil
+import glob
 
 def makeHwp(pagePadding, align, fontSize, charSpacing):
     hwp = win32.gencache.EnsureDispatch("HWPFrame.HwpObject", pythoncom.CoInitialize())
@@ -341,7 +342,6 @@ def fixedSpaceMode(hwp, findStr, replaceStr):
 import json
 import time
 
-
 def makeHwpController(jsonStr):
     jsonArrForHwp = json.loads(jsonStr)
     hwp = makeHwp("좁게", "alignLeft", 900, 0)
@@ -363,3 +363,101 @@ def makeHwpController(jsonStr):
     hwp.Quit()
 
     return os.getcwd() + "\\userHwp\\" + hwpFileName
+
+
+def convertFormulToText(filename):
+    BASE_DIR = os.getcwd() + "\\convertHwp"
+    # 한/글 열기
+    hwp = win32.gencache.EnsureDispatch("HWPFrame.HwpObject", pythoncom.CoInitialize())
+    hwp.RegisterModule("FilePathCheckDLL", "FilePathCheckModule")
+    hwp.Open(os.path.join(BASE_DIR, filename))
+    hwp.XHwpWindows.Item(0).Visible = True
+
+    # 주석 저장(각주, 미주)
+    nowDate = str(datetime.now()).replace("-", "").replace(" ", "_").replace(":", "").replace(".", "_")
+    randNum = str(int(random.random() * 10 ** 9))
+    fileName = nowDate + "_" + randNum + ".hwp"
+    hwp.HAction.GetDefault("SaveFootnote", hwp.HParameterSet.HSaveFootnote.HSet)
+    fileName = os.getcwd() + "\\convertHeaderFooterHwp\\" + fileName
+    hwp.HParameterSet.HSaveFootnote.HSet.SetItem('FileName', fileName)
+    hwp.HParameterSet.HSaveFootnote.HSet.SetItem('Flag', 3)
+    hwp.HAction.Execute("SaveFootnote", hwp.HParameterSet.HSaveFootnote.HSet)
+
+    # 제일 하단에 주석(각주, 미주) 추가
+    hwp.Run('MoveDocEnd')
+    hwp.Run('BreakPara')
+    hwp.HAction.GetDefault("InsertFile", hwp.HParameterSet.HInsertFile.HSet);
+    option = hwp.HParameterSet.HInsertFile
+    option.filename = fileName
+    option.KeepSection = 0;
+    option.KeepCharshape = 1;
+    option.KeepParashape = 1;
+    option.KeepStyle = 1;
+    hwp.HAction.Execute("InsertFile", hwp.HParameterSet.HInsertFile.HSet);
+
+    # 모든 각주를 미주로 변환
+    hwp.HAction.GetDefault("ExchangeFootnoteEndnote", hwp.HParameterSet.HExchangeFootnoteEndNote.HSet)
+    hwp.HParameterSet.HExchangeFootnoteEndNote.Flag = 0
+    hwp.HAction.Execute("ExchangeFootnoteEndnote", hwp.HParameterSet.HExchangeFootnoteEndNote.HSet)
+
+    # 머리말, 꼬리말, 미주 지우기
+    hwp.HAction.GetDefault("DeleteCtrls", hwp.HParameterSet.HDeleteCtrls.HSet)
+    hwp.HParameterSet.HDeleteCtrls.CreateItemArray('DeleteCtrlType', 3)
+    hwp.HParameterSet.HDeleteCtrls.DeleteCtrlType.SetItem(0, 31)  # 전체 머리말 지우기
+    hwp.HParameterSet.HDeleteCtrls.DeleteCtrlType.SetItem(1, 26)  # 전체 꼬리말 지우기
+    hwp.HParameterSet.HDeleteCtrls.DeleteCtrlType.SetItem(2, 14)  # 전체 미주 지우기
+    hwp.HAction.Execute("DeleteCtrls", hwp.HParameterSet.HDeleteCtrls.HSet)
+
+    #주석 파일 제거
+    os.remove(fileName)
+
+    #수식 가공 시작
+    hwp.Run('MoveDocBegin')
+    ctrl = hwp.HeadCtrl
+    while ctrl != None:
+        if ctrl.CtrlID == "eqed":
+            position = ctrl.GetAnchorPos(0)  # 해당 컨트롤의 좌표를 position 변수에 저장
+            position = position.Item("List"), position.Item("Para"), position.Item("Pos")
+            hwp.SetPos(*position)  # 해당 컨트롤 앞으로 캐럿(커서)을 옮김
+            hwp.FindCtrl()
+            액션 = hwp.CreateAction("EquationModify")
+            세트 = 액션.CreateSet()
+            아이템셋 = 세트.CreateItemSet("EqEdit", "EqEdit")
+            액션.GetDefault(아이템셋)
+            추출수식 = 아이템셋.Item("VisualString").replace("\r\n", " ")
+            hwp.Run("Delete")
+            if (추출수식 != ""):
+                hwp.HAction.GetDefault("InsertText", hwp.HParameterSet.HInsertText.HSet);
+                hwp.HParameterSet.HInsertText.Text = "$strt/ " + 추출수식 + " $end/";
+                hwp.HAction.Execute("InsertText", hwp.HParameterSet.HInsertText.HSet);
+                hwp.Run("MoveLineBegin")
+        ctrl = ctrl.Next
+
+    hwp.Run("SelectAll")
+    char_shape = hwp.CharShape
+    char_shape.SetItem("UseFontSpace", 0)
+    char_shape.SetItem("Height", 900)
+    hwp.CharShape = char_shape
+    hwp.Run(f"CharShapeTextColor{'black'}")
+    hwp.Save()
+    time.sleep(0.2)  # 0.2초 쉬어줌(꼭 필요)
+    hwp.Quit()
+
+    #hwp to html
+    exefile = 'hwp5html'
+    os.system(exefile+" "+BASE_DIR+"\\"+filename)
+
+    #hwp파일 삭제
+    os.remove(BASE_DIR+"\\"+filename)
+
+    #css파일 삭제 후 zip파일로 변경
+    folderName = os.getcwd()+"\\"+filename.split(".hwp")[0]
+    print(folderName)
+
+    test = os.listdir(folderName)
+    for item in test:
+        if item.endswith(".css"):
+            os.remove(os.path.join(folderName, item))
+
+    shutil.make_archive(folderName, 'zip', folderName)
+    return folderName
