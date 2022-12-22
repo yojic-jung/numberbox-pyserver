@@ -1,7 +1,7 @@
 import os, stat
 from datetime import datetime
 #import numpy as np
-import cv2
+#import cv2
 
 def delete_old_files(path_target, minutes_elapsed, ext):
     """path_target:삭제할 파일이 있는 디렉토리, days_elapsed:경과일수"""
