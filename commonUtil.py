@@ -1,6 +1,6 @@
 import os, stat
 from datetime import datetime
-import numpy as np
+#import numpy as np
 import cv2
 
 def delete_old_files(path_target, minutes_elapsed, ext):
