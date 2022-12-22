@@ -10,6 +10,7 @@ import os, shutil
 server_addr = '172.31.0.246', 5555
 th=[];
 
+
 sema = threading.Semaphore(3)
 
 # Create a socket with port and host bindings

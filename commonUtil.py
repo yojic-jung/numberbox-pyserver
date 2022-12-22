@@ -27,7 +27,7 @@ def remove_readonly(fn, path, excinfo):
     except Exception as exc:
         print("Skipped:", path, "because:\n", exc)
 
-
+"""
 def pixelDiff(img1, img2):
     oneImg = cv2.imread(img1)
     one = cv2.resize(oneImg, (512, 512))
@@ -48,3 +48,4 @@ def pixelDiff(img1, img2):
     except:
         b=[100, 100, 100]
     return (sum(b, 0.0)/len(b))
+"""
