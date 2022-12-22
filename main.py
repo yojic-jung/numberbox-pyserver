@@ -1,9 +1,10 @@
 import socket
 import customHwp
+import commonUtil
 import threading
 from datetime import datetime
 import random
-import os, shutil, stat
+import os, shutil
 
 server_addr = '127.0.0.1', 5555
 th=[];
@@ -75,11 +76,28 @@ def dataTransfer(conn, s):
             # conn.send(bytes("DONE", 'utf-8'))
         # Chat between client and server
         elif mode == "FILE":
-            try:
                 data = conn.recv(4);
                 # 최초 4바이트는 전송할 데이터의 크기이다. 그 크기는 little big 엔디언으로 byte에서 int형식으로 변환한다.
                 # C#의 BitConverter는 big엔디언으로 처리된다.
                 length = int.from_bytes(data, "little")
+
+                #파일 확장자
+                extByte = conn.recv(4);
+                extension = int.from_bytes(extByte, "little")
+                #1: hwp, 2: hwpx, 3: hwt, 4: hwtx, 5: hml
+                if extension == 1:
+                    extension = "hwp"
+                elif extension == 2:
+                    extension = "hwpx"
+                elif extension == 3:
+                    extension = "hwt"
+                elif extension == 4:
+                    extension = "hwtx"
+                elif extension == 5:
+                    extension = "hml"
+                else:
+                    extension = "hwp"
+
                 #데이터 분할하여 받기
                 tmpByteData=b''
                 while True:
@@ -90,35 +108,26 @@ def dataTransfer(conn, s):
                 #파일명 난수로 생성
                 nowDate = str(datetime.now()).replace("-", "").replace(" ", "_").replace(":", "").replace(".", "_")
                 randNum = str(int(random.random() * 10 ** 9))
-                fileName=nowDate+"_"+randNum+".hwp"
+                fileName = nowDate+"_"+randNum+"."+extension
                 filePath = os.getcwd() + "\\convertHwp\\"+fileName
                 f = open(filePath, 'wb')
                 f.write(tmpByteData)
                 f.close()
-
                 # 데이터 가공
                 sema.acquire()
                 folderName = customHwp.convertFormulToText(fileName)
                 sema.release()
-                #sendFile(folderName+".zip", conn)
+
+                sendFile(folderName+".zip", conn)
                 #zip파일 삭제
                 os.remove(folderName+".zip")
                 #폴더 삭제
-                shutil.rmtree(folderName, onerror=remove_readonly)
+                shutil.rmtree(folderName, onerror=commonUtil.remove_readonly)
                 break
-            except:
-                break
+
             # Receive Data
 
     conn.close()
-
-def remove_readonly(fn, path, excinfo):
-    try:
-        os.chmod(path, stat.S_IWRITE)
-        fn(path)
-    except Exception as exc:
-        print("Skipped:", path, "because:\n", exc)
-
 
 
 sock = setupServer()

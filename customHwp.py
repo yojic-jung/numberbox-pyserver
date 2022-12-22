@@ -13,11 +13,12 @@ from os import remove
 from datetime import datetime
 import random
 import shutil
-import glob
+import json
+import time
 
 def makeHwp(pagePadding, align, fontSize, charSpacing):
     hwp = win32.gencache.EnsureDispatch("HWPFrame.HwpObject", pythoncom.CoInitialize())
-    #hwp.XHwpWindows.Item(0).Visible = True
+    hwp.XHwpWindows.Item(0).Visible = False
     hwp.RegisterModule("FilePathCheckDLL", "FilePathCheckModule")
     # 페이지 여백 설정
     if pagePadding == "좁게":
@@ -339,8 +340,6 @@ def fixedSpaceMode(hwp, findStr, replaceStr):
     hwp.HAction.Execute("AllReplace", hwp.HParameterSet.HFindReplace.HSet)
 
 
-import json
-import time
 
 def makeHwpController(jsonStr):
     jsonArrForHwp = json.loads(jsonStr)
@@ -370,8 +369,25 @@ def convertFormulToText(filename):
     # 한/글 열기
     hwp = win32.gencache.EnsureDispatch("HWPFrame.HwpObject", pythoncom.CoInitialize())
     hwp.RegisterModule("FilePathCheckDLL", "FilePathCheckModule")
+    hwp.XHwpWindows.Item(0).Visible = False
     hwp.Open(os.path.join(BASE_DIR, filename))
-    hwp.XHwpWindows.Item(0).Visible = True
+    #확장자가 hwp가 아닌 경우 hwp로 포맷 변환하고 hwp파일로 편집하기
+    path, ext = os.path.splitext(filename)
+    if ext == ".hml" or ext == ".hwt" or ext == ".hwpx" or ext == ".hwtx" :
+        hwp.SaveAs(BASE_DIR+"\\"+path+".hwp")
+        hwp.Save()
+        time.sleep(0.2)  # 0.2초 쉬어줌(꼭 필요)
+        hwp.Quit()
+        #기존 hwp확장자 아닌 한글 파일 제거
+        os.remove(BASE_DIR+"\\"+ filename)
+        #새로운 hwp파일로 편집 시작
+        filename = path + ".hwp"
+        hwp = win32.gencache.EnsureDispatch("HWPFrame.HwpObject", pythoncom.CoInitialize())
+        hwp.RegisterModule("FilePathCheckDLL", "FilePathCheckModule")
+        hwp.XHwpWindows.Item(0).Visible = False
+        hwp.Open(os.path.join(BASE_DIR, filename))
+
+
 
     # 주석 저장(각주, 미주)
     nowDate = str(datetime.now()).replace("-", "").replace(" ", "_").replace(":", "").replace(".", "_")
@@ -381,38 +397,43 @@ def convertFormulToText(filename):
     fileName = os.getcwd() + "\\convertHeaderFooterHwp\\" + fileName
     hwp.HParameterSet.HSaveFootnote.HSet.SetItem('FileName', fileName)
     hwp.HParameterSet.HSaveFootnote.HSet.SetItem('Flag', 3)
-    hwp.HAction.Execute("SaveFootnote", hwp.HParameterSet.HSaveFootnote.HSet)
+    existFootNote = hwp.HAction.Execute("SaveFootnote", hwp.HParameterSet.HSaveFootnote.HSet)
+    time.sleep(0.2)  # 0.2초 쉬어줌(꼭 필요)
 
-    # 제일 하단에 주석(각주, 미주) 추가
-    hwp.Run('MoveDocEnd')
-    hwp.Run('BreakPara')
-    hwp.HAction.GetDefault("InsertFile", hwp.HParameterSet.HInsertFile.HSet);
-    option = hwp.HParameterSet.HInsertFile
-    option.filename = fileName
-    option.KeepSection = 0;
-    option.KeepCharshape = 1;
-    option.KeepParashape = 1;
-    option.KeepStyle = 1;
-    hwp.HAction.Execute("InsertFile", hwp.HParameterSet.HInsertFile.HSet);
+    if(existFootNote):
+        # 제일 하단에 주석(각주, 미주) 추가
+        hwp.Run('MoveDocEnd')
+        hwp.Run('BreakPara')
+        hwp.HAction.GetDefault("InsertFile", hwp.HParameterSet.HInsertFile.HSet);
+        option = hwp.HParameterSet.HInsertFile
+        option.filename = fileName
+        option.KeepSection = 0;
+        option.KeepCharshape = 1;
+        option.KeepParashape = 1;
+        option.KeepStyle = 1;
+        hwp.HAction.Execute("InsertFile", hwp.HParameterSet.HInsertFile.HSet);
+        time.sleep(0.2)  # 0.2초 쉬어줌(꼭 필요)
 
-    # 모든 각주를 미주로 변환
-    hwp.HAction.GetDefault("ExchangeFootnoteEndnote", hwp.HParameterSet.HExchangeFootnoteEndNote.HSet)
-    hwp.HParameterSet.HExchangeFootnoteEndNote.Flag = 0
-    hwp.HAction.Execute("ExchangeFootnoteEndnote", hwp.HParameterSet.HExchangeFootnoteEndNote.HSet)
+        # 모든 각주를 미주로 변환
+        hwp.HAction.GetDefault("ExchangeFootnoteEndnote", hwp.HParameterSet.HExchangeFootnoteEndNote.HSet)
+        hwp.HParameterSet.HExchangeFootnoteEndNote.Flag = 0
+        hwp.HAction.Execute("ExchangeFootnoteEndnote", hwp.HParameterSet.HExchangeFootnoteEndNote.HSet)
 
-    # 머리말, 꼬리말, 미주 지우기
-    hwp.HAction.GetDefault("DeleteCtrls", hwp.HParameterSet.HDeleteCtrls.HSet)
-    hwp.HParameterSet.HDeleteCtrls.CreateItemArray('DeleteCtrlType', 3)
-    hwp.HParameterSet.HDeleteCtrls.DeleteCtrlType.SetItem(0, 31)  # 전체 머리말 지우기
-    hwp.HParameterSet.HDeleteCtrls.DeleteCtrlType.SetItem(1, 26)  # 전체 꼬리말 지우기
-    hwp.HParameterSet.HDeleteCtrls.DeleteCtrlType.SetItem(2, 14)  # 전체 미주 지우기
-    hwp.HAction.Execute("DeleteCtrls", hwp.HParameterSet.HDeleteCtrls.HSet)
+        # 머리말, 꼬리말, 미주 지우기
+        hwp.HAction.GetDefault("DeleteCtrls", hwp.HParameterSet.HDeleteCtrls.HSet)
+        hwp.HParameterSet.HDeleteCtrls.CreateItemArray('DeleteCtrlType', 3)
+        hwp.HParameterSet.HDeleteCtrls.DeleteCtrlType.SetItem(0, 31)  # 전체 머리말 지우기
+        hwp.HParameterSet.HDeleteCtrls.DeleteCtrlType.SetItem(1, 26)  # 전체 꼬리말 지우기
+        hwp.HParameterSet.HDeleteCtrls.DeleteCtrlType.SetItem(2, 14)  # 전체 미주 지우기
+        hwp.HAction.Execute("DeleteCtrls", hwp.HParameterSet.HDeleteCtrls.HSet)
 
-    #주석 파일 제거
-    os.remove(fileName)
+        #주석 파일 제거
+        os.remove(fileName)
+        time.sleep(0.2)  # 0.2초 쉬어줌(꼭 필요)
 
     #수식 가공 시작
     hwp.Run('MoveDocBegin')
+    """
     ctrl = hwp.HeadCtrl
     while ctrl != None:
         if ctrl.CtrlID == "eqed":
@@ -432,6 +453,13 @@ def convertFormulToText(filename):
                 hwp.HAction.Execute("InsertText", hwp.HParameterSet.HInsertText.HSet);
                 hwp.Run("MoveLineBegin")
         ctrl = ctrl.Next
+    """
+    hwp.RunScriptMacro("OnScriptMacro_equationToTexScript()", 0, 1)
+    time.sleep(0.2)  # 0.2초 쉬어줌(꼭 필요)
+    hwp.Run('MoveDocBegin')
+    time.sleep(0.2)  # 0.2초 쉬어줌(꼭 필요)
+    hwp.RunScriptMacro("OnScriptMacro_zocboCirlcleImg()", 0, 1)
+    time.sleep(0.2)  # 0.2초 쉬어줌(꼭 필요)
 
     hwp.Run("SelectAll")
     char_shape = hwp.CharShape
@@ -439,6 +467,7 @@ def convertFormulToText(filename):
     char_shape.SetItem("Height", 900)
     hwp.CharShape = char_shape
     hwp.Run(f"CharShapeTextColor{'black'}")
+
     hwp.Save()
     time.sleep(0.2)  # 0.2초 쉬어줌(꼭 필요)
     hwp.Quit()
@@ -446,18 +475,55 @@ def convertFormulToText(filename):
     #hwp to html
     exefile = 'hwp5html'
     os.system(exefile+" "+BASE_DIR+"\\"+filename)
-
+    time.sleep(0.2)  # 0.2초 쉬어줌(꼭 필요)
     #hwp파일 삭제
     os.remove(BASE_DIR+"\\"+filename)
-
-    #css파일 삭제 후 zip파일로 변경
+    time.sleep(0.2)  # 0.2초 쉬어줌(꼭 필요)
     folderName = os.getcwd()+"\\"+filename.split(".hwp")[0]
-    print(folderName)
 
-    test = os.listdir(folderName)
-    for item in test:
+    """
+    similarArr = []
+    # 원형문자 이미지 제외하고 base64로 디코딩
+    imgFileList = os.listdir(folderName+"\\binData")
+    circleImgList = os.listdir(os.getcwd() + "\\convertCompareImg")
+    for item in imgFileList:
+        for circleImg in circleImgList:
+            if item.endswith(".jpg") or item.endswith(".png") or item.endswith(".bmp"):
+                similarVal = commonUtil.pixelDiff(os.getcwd()+"\\convertCompareImg\\"+circleImg, folderName+"\\binData\\"+item)
+                if(similarVal<5):
+                    similarArr.append({"circleType":circleImg.split(".")[0], "filePath":item})
+                    break
+
+    page = open(folderName+'/index.xhtml', 'rt', encoding='utf-8').read()
+    soup = BeautifulSoup(page, 'html.parser')
+    for circleImg in similarArr:
+        for img in soup.find_all('img', src="bindata/"+circleImg["filePath"]):
+            img["class"] = "circle "+circleImg["circleType"]
+
+    for circleImg in similarArr:
+        os.remove(folderName+"/bindata/"+circleImg["filePath"])
+    """
+
+    """
+    #이미지 base64 인코딩
+    for img in soup.find_all('img'):
+        with open(folderName+"\\"+img["src"], 'rb') as images:
+            base64_string = base64.b64encode(images.read())
+            img["src"] = "data:image/png;base64,"+str(base64_string, 'utf-8')
+    """
+    """
+    file = open(folderName + '/index.xhtml', 'w', encoding='utf-8')
+    file.write(soup.prettify())
+    file.close()
+    """
+    #css파일 제거
+    cssFileList = os.listdir(folderName)
+    for item in cssFileList:
         if item.endswith(".css"):
             os.remove(os.path.join(folderName, item))
 
+    # zip파일 만들기
     shutil.make_archive(folderName, 'zip', folderName)
+
     return folderName
+
