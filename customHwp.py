@@ -461,6 +461,69 @@ def convertFormulToText(filename):
     hwp.RunScriptMacro("OnScriptMacro_zocboCirlcleImg()", 0, 1)
     time.sleep(0.2)  # 0.2초 쉬어줌(꼭 필요)
 
+    #줄바꿈 처리 안되는 에러 해결
+    hwp.Run('MoveDocBegin')
+    hwp.HAction.GetDefault("AllReplace", hwp.HParameterSet.HFindReplace.HSet)
+    hwp.HParameterSet.HFindReplace.FindString = "^l"     #강제 줄나눔
+    hwp.HParameterSet.HFindReplace.ReplaceString = "^n"  #문단 끝
+    hwp.HParameterSet.HFindReplace.Direction = 2
+    hwp.HParameterSet.HFindReplace.IgnoreMessage = 1
+    hwp.HAction.Execute("AllReplace", hwp.HParameterSet.HFindReplace.HSet)
+
+    #절댓값 변경(web에서 이 문자 못 받아들임)
+    hwp.Run('MoveDocBegin')
+    hwp.HAction.GetDefault("AllReplace", hwp.HParameterSet.HFindReplace.HSet)
+    hwp.HParameterSet.HFindReplace.FindString = ""
+    hwp.HParameterSet.HFindReplace.ReplaceString = "|"
+    hwp.HParameterSet.HFindReplace.Direction = 2
+    hwp.HParameterSet.HFindReplace.IgnoreMessage = 1
+    hwp.HAction.Execute("AllReplace", hwp.HParameterSet.HFindReplace.HSet)
+
+    # 평행기호 변경(web에서 이 문자 못 받아들임)
+    hwp.Run('MoveDocBegin')
+    hwp.HAction.GetDefault("AllReplace", hwp.HParameterSet.HFindReplace.HSet)
+    hwp.HParameterSet.HFindReplace.FindString = "󰁚"
+    hwp.HParameterSet.HFindReplace.ReplaceString = "//"
+    hwp.HParameterSet.HFindReplace.Direction = 2
+    hwp.HParameterSet.HFindReplace.IgnoreMessage = 1
+    hwp.HAction.Execute("AllReplace", hwp.HParameterSet.HFindReplace.HSet)
+    
+    # 닮음기호 변경(web에서 이 문자 못 받아들임)
+    hwp.Run('MoveDocBegin')
+    hwp.HAction.GetDefault("AllReplace", hwp.HParameterSet.HFindReplace.HSet)
+    hwp.HParameterSet.HFindReplace.FindString = "󰁀"
+    hwp.HParameterSet.HFindReplace.ReplaceString = "∽"
+    hwp.HParameterSet.HFindReplace.Direction = 2
+    hwp.HParameterSet.HFindReplace.IgnoreMessage = 1
+    hwp.HAction.Execute("AllReplace", hwp.HParameterSet.HFindReplace.HSet)
+
+    # 한컴 띄어쓰기 변경(web에서 이 문자 못 받아들임)
+    hwp.Run('MoveDocBegin')
+    hwp.HAction.GetDefault("AllReplace", hwp.HParameterSet.HFindReplace.HSet)
+    hwp.HParameterSet.HFindReplace.FindString = ""
+    hwp.HParameterSet.HFindReplace.ReplaceString = " "
+    hwp.HParameterSet.HFindReplace.Direction = 2
+    hwp.HParameterSet.HFindReplace.IgnoreMessage = 1
+    hwp.HAction.Execute("AllReplace", hwp.HParameterSet.HFindReplace.HSet)
+
+    # 한컴 띄어쓰기 변경(web에서 이 문자 못 받아들임)
+    hwp.Run('MoveDocBegin')
+    hwp.HAction.GetDefault("AllReplace", hwp.HParameterSet.HFindReplace.HSet)
+    hwp.HParameterSet.HFindReplace.FindString = ""
+    hwp.HParameterSet.HFindReplace.ReplaceString = " "
+    hwp.HParameterSet.HFindReplace.Direction = 2
+    hwp.HParameterSet.HFindReplace.IgnoreMessage = 1
+    hwp.HAction.Execute("AllReplace", hwp.HParameterSet.HFindReplace.HSet)
+
+    # 한컴 띄어쓰기 변경(web에서 이 문자 못 받아들임)
+    hwp.Run('MoveDocBegin')
+    hwp.HAction.GetDefault("AllReplace", hwp.HParameterSet.HFindReplace.HSet)
+    hwp.HParameterSet.HFindReplace.FindString = ""
+    hwp.HParameterSet.HFindReplace.ReplaceString = " "
+    hwp.HParameterSet.HFindReplace.Direction = 2
+    hwp.HParameterSet.HFindReplace.IgnoreMessage = 1
+    hwp.HAction.Execute("AllReplace", hwp.HParameterSet.HFindReplace.HSet)
+
     hwp.Run("SelectAll")
     char_shape = hwp.CharShape
     char_shape.SetItem("UseFontSpace", 0)
@@ -474,12 +537,13 @@ def convertFormulToText(filename):
 
     #hwp to html
     exefile = 'hwp5html'
-    os.system(exefile+" "+BASE_DIR+"\\"+filename)
+    folderName = BASE_DIR + "\\" + filename.split(".hwp")[0]
+    os.system(exefile+" "+BASE_DIR+"\\"+filename+" --output "+folderName)
     time.sleep(0.2)  # 0.2초 쉬어줌(꼭 필요)
     #hwp파일 삭제
     os.remove(BASE_DIR+"\\"+filename)
     time.sleep(0.2)  # 0.2초 쉬어줌(꼭 필요)
-    folderName = os.getcwd()+"\\"+filename.split(".hwp")[0]
+
 
     """
     similarArr = []

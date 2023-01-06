@@ -1,17 +1,25 @@
 import socket
+import shutil
 import customHwp
 import commonUtil
 import threading
+import jobScheduler
 from datetime import datetime
 import random
-import os, shutil
+import os
+from apscheduler.schedulers.background import BackgroundScheduler
 
 #server_addr = '127.0.0.1', 5555
 server_addr = '172.31.0.246', 5555
+
 th=[];
 
-
 sema = threading.Semaphore(3)
+
+#스케줄러 등록
+sched = BackgroundScheduler(timezone='Asia/Seoul')
+sched.start()
+sched.add_job(jobScheduler.deleteOldFileAndFolder, 'cron', hour='04', minute='00', id="job_1")
 
 # Create a socket with port and host bindings
 def setupServer():
