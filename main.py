@@ -14,7 +14,7 @@ server_addr = '172.31.0.246', 5555
 
 th=[];
 
-sema = threading.Semaphore(3)
+sema = threading.Semaphore(10)
 
 #스케줄러 등록
 sched = BackgroundScheduler(timezone='Asia/Seoul')
