@@ -13,6 +13,7 @@
 > Socket 프로젝트
 1. python(v3.9.11) 설치  
 <br/>
+
 2. 깃을 통해 프로젝트 다운  
 ```
 git clone https://github.com/yojic-jung/numberbox-pyserver.git
