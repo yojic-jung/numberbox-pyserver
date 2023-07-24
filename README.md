@@ -6,7 +6,7 @@
 <br/>
 
 ## 시스템 구성(인프라)
-<img src="https://github.com/yojic-jung/back/assets/45252387/9d44771a-2fac-4bbb-8af5-8a678ed04500" width="500" >
+<img src="https://github.com/yojic-jung/numberbox-pyserver/assets/45252387/88d55fd0-769b-4dc5-be71-77db11941dff" width="500" >
 <br/><br/><br/>
 
 ## 실행가이드
