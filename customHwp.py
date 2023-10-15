@@ -16,12 +16,13 @@ import shutil
 import json
 import time
 
-def makeHwp(pagePadding, align, fontSize, charSpacing):
+
+def make_hwp(page_padding_mode, align, font_size, char_spacing):
     hwp = win32.gencache.EnsureDispatch("HWPFrame.HwpObject", pythoncom.CoInitialize())
     hwp.XHwpWindows.Item(0).Visible = False
     hwp.RegisterModule("FilePathCheckDLL", "FilePathCheckModule")
     # 페이지 여백 설정
-    if pagePadding == "좁게":
+    if page_padding_mode == "좁게":
         hwp.HAction.GetDefault("PageSetup", hwp.HParameterSet.HSecDef.HSet)
         hwp.HParameterSet.HSecDef.PageDef.Landscape = 2
         hwp.HParameterSet.HSecDef.PageDef.TopMargin = hwp.MiliToHwpUnit(15.0)
@@ -35,21 +36,21 @@ def makeHwp(pagePadding, align, fontSize, charSpacing):
     if align == "alignLeft":
         hwp.Run("ParagraphShapeAlignLeft")  # 최초 왼쪽 정렬 속성 주고 시작(default가 양쪽 정렬이기에 자간간격이 벌어지는 현상 나타남)
 
-    while charSpacing != 0 and charSpacing < 0:
+    while char_spacing != 0 and char_spacing < 0:
         hwp.Run("CharShapeSpacingDecrease")
-        charSpacing = charSpacing + 1
+        char_spacing = char_spacing + 1
 
     # 줄나눔 기준
     hwp.HAction.GetDefault("ParagraphShape", hwp.HParameterSet.HParaShape.HSet)
     hwp.HParameterSet.HParaShape.BreakNonLatinWord = True  # 글자 단위로 줄 나눔
     hwp.HAction.Execute("ParagraphShape", hwp.HParameterSet.HParaShape.HSet)
 
-    setFont(hwp, fontSize);  # 폰트 크기 9pt로 설정
+    set_font(hwp, font_size)  # 폰트 크기 9pt로 설정
 
     return hwp
 
 
-def setPageNum(hwp):
+def set_page_num(hwp):
     hwp.HAction.GetDefault("PageNumPos", hwp.HParameterSet.HPageNumPos.HSet)
     hwp.HParameterSet.HPageNumPos.NumberFormat = 0
     hwp.HParameterSet.HPageNumPos.DrawPos = 5
@@ -57,14 +58,14 @@ def setPageNum(hwp):
 
 
 # 다단 설정
-def setMultiColLayout(hwp, cnt, line):
+def set_multi_colum(hwp, cnt, line):
     hwp.HAction.GetDefault("MultiColumn", hwp.HParameterSet.HColDef.HSet)
     hwp.HParameterSet.HColDef.type = 0
     hwp.HParameterSet.HColDef.Count = cnt
     hwp.HParameterSet.HColDef.SameSize = 1
     hwp.HParameterSet.HColDef.SameGap = hwp.MiliToHwpUnit(5.0)
     hwp.HParameterSet.HColDef.Layout = 0
-    if (line == "SOLID"):
+    if line == "SOLID":
         hwp.HParameterSet.HColDef.LineType = 1
         hwp.HParameterSet.HColDef.LineWidth = hwp.MiliToHwpUnit(2.0)
         hwp.HParameterSet.HColDef.HSet.SetItem("ApplyTo", 6)
@@ -72,26 +73,26 @@ def setMultiColLayout(hwp, cnt, line):
 
 
 # 텍스트 삽입
-def insertHwpText(hwp, jsonObjForHwp):
+def insert_hwp_text(hwp, json_for_hwp):
     hwp.HAction.GetDefault("InsertText", hwp.HParameterSet.HInsertText.HSet)
-    hwp.HParameterSet.HInsertText.Text = jsonObjForHwp["contents"]
+    hwp.HParameterSet.HInsertText.Text = json_for_hwp["contents"]
     hwp.HAction.Execute("InsertText", hwp.HParameterSet.HInsertText.HSet)
 
 
 # 밑줄 효과 실행
-def executeUnderLine(hwp):
+def execute_underline(hwp):
     hwp.Run("CharShapeUnderline")
 
 
 # 글자 크기 셋
-def setFont(hwp, fontSize):
+def set_font(hwp, font_size):
     char_shape = hwp.CharShape
     char_shape.SetItem("UseFontSpace", 0)
-    char_shape.SetItem("Height", fontSize)
+    char_shape.SetItem("Height", font_size)
     hwp.CharShape = char_shape
 
 
-def takeHwpPosInfo(hwp, idx):
+def take_hwp_pos(hwp, idx):
     # KeyIndicator 반환값
     # 0 : ??
     # 1 : 총 구역
@@ -106,51 +107,51 @@ def takeHwpPosInfo(hwp, idx):
 
 
 # 이미지 삽입
-def insertHwpImg(hwp, jsonObjForHwp):
-    png_recovered = base64.b64decode(jsonObjForHwp["contents"])
+def insert_hwp_img(hwp, json_for_hwp):
+    png_recovered = base64.b64decode(json_for_hwp["contents"])
     # 시스템시간_난수 파일명 생성
-    nowDate = str(datetime.now()).replace("-", "").replace(" ", "_").replace(":", "").replace(".", "_")
-    randNum = str(int(random.random() * 10 ** 9))
-    imgFileName = nowDate + "_" + randNum + "_image.png"
-    imgFile = open(imgFileName, 'wb')
-    imgFile.write(png_recovered)
-    imgFile.close()  # 이미지 생성
+    now_date = str(datetime.now()).replace("-", "").replace(" ", "_").replace(":", "").replace(".", "_")
+    rand_num = str(int(random.random() * 10 ** 9))
+    img_file_name = now_date + "_" + rand_num + "_image.png"
+    img_file = open(img_file_name, 'wb')
+    img_file.write(png_recovered)
+    img_file.close()  # 이미지 생성
 
     # 이미지 크기 px to mm
     # 이미지 셋팅시 추가되는 좌우 여백 3mm(12px)만큼 크기 제거
-    imgSizeRatio = int(jsonObjForHwp["imgHeight"]) / int(jsonObjForHwp["imgWidth"])
-    imgWidth = int(jsonObjForHwp["imgWidth"] - 12) * 0.264
-    imgHeight = int(jsonObjForHwp["imgHeight"] - 12 * imgSizeRatio) * 0.264
+    img_size_ratio = int(json_for_hwp["imgHeight"]) / int(json_for_hwp["imgWidth"])
+    img_width = int(json_for_hwp["imgWidth"] - 12) * 0.264
+    img_height = int(json_for_hwp["imgHeight"] - 12 * img_size_ratio) * 0.264
 
     # 현재 캐럿이 현재 줄의 첫번째 칸이 아니면 한 줄 뛰고 이미지 삽입
-    currentCell = takeHwpPosInfo(hwp, 6)
-    if (currentCell != 0):
+    current_cell = take_hwp_pos(hwp, 6)
+    if current_cell != 0 :
         hwp.Run("BreakPara")
 
     # 이미지 추가
     # 파라미터(파일 경로, 문서 내 포함 여부, 사이즈 크기 지정 옵션, 이미지 반전 옵션, 워터마크 효과 유무, 그림효과, 가로, 세로)
-    hwp.InsertPicture(os.getcwd() + "\\" + imgFileName, True, 1, False, False, 0, imgWidth, imgHeight)
-    remove(os.getcwd() + "\\" + imgFileName)  # 이미지 삭제
+    hwp.InsertPicture(os.getcwd() + "\\" + img_file_name, True, 1, False, False, 0, img_width, img_height)
+    remove(os.getcwd() + "\\" + img_file_name)  # 이미지 삭제
 
     hwp.FindCtrl()  # 캐럿 앞(또는 뒤) 객체 선택
     hwp.HAction.GetDefault("ShapeObjDialog", hwp.HParameterSet.HShapeObject.HSet)
-    if (jsonObjForHwp["float"] == "left"):
+    if json_for_hwp["float"] == "left":
         hwp.HParameterSet.HShapeObject.HSet.SetItem("TreatAsChar", False)  # 글자처럼 취급하지 않음
         hwp.HParameterSet.HShapeObject.HSet.SetItem("TextWrap", 0)  # 어울림
         hwp.HParameterSet.HShapeObject.HSet.SetItem("HorzAlign", 0)  # 가로 왼쪽 정렬
-    elif (jsonObjForHwp["float"] == "right"):
+    elif json_for_hwp["float"] == "right":
         hwp.HParameterSet.HShapeObject.HSet.SetItem("TreatAsChar", False)  # 글자처럼 취급하지 않음
         hwp.HParameterSet.HShapeObject.HSet.SetItem("TextWrap", 0)  # 어울림
         hwp.HParameterSet.HShapeObject.HSet.SetItem("HorzAlign", 2)  # 가로 오른쪽 정렬
-    elif (jsonObjForHwp["float"] == "asBlockCenter"):
+    elif json_for_hwp["float"] == "asBlockCenter":
         hwp.HParameterSet.HShapeObject.HSet.SetItem("TreatAsChar", False)  # 글자처럼 취급하지 않음
         hwp.HParameterSet.HShapeObject.HSet.SetItem("TextWrap", 1)  # 자리차지
         hwp.HParameterSet.HShapeObject.HSet.SetItem("HorzAlign", 1)  # 가로 가운데 정렬
-    elif (jsonObjForHwp["float"] == "asBlockRight"):
+    elif json_for_hwp["float"] == "asBlockRight":
         hwp.HParameterSet.HShapeObject.HSet.SetItem("TreatAsChar", False)  # 글자처럼 취급하지 않음
         hwp.HParameterSet.HShapeObject.HSet.SetItem("TextWrap", 1)  # 자리차지
         hwp.HParameterSet.HShapeObject.HSet.SetItem("HorzAlign", 2)  # 가로 오른쪽 정렬
-    elif (jsonObjForHwp["float"] == "asChar" or jsonObjForHwp["float"] == "asCharNoBreakPara"):
+    elif json_for_hwp["float"] == "asChar" or json_for_hwp["float"] == "asCharNoBreakPara":
         hwp.HParameterSet.HShapeObject.HSet.SetItem("TreatAsChar", True)  # 글자처럼 취급
 
     hwp.HParameterSet.HShapeObject.HSet.SetItem("OutsideMarginLeft", hwp.MiliToHwpUnit(1.5))  # 이미지 왼쪽 바깥쪽 여백
@@ -159,17 +160,17 @@ def insertHwpImg(hwp, jsonObjForHwp):
     hwp.Run("Cancel")
     hwp.Run("MoveRight")
 
-    if (jsonObjForHwp["float"] == "asBlockCenter") or (jsonObjForHwp["float"] == "asBlockRight") or (
-            jsonObjForHwp["float"] == "asChar"):
+    if json_for_hwp["float"] == "asBlockCenter" or json_for_hwp["float"] == "asBlockRight" \
+            or json_for_hwp["float"] == "asChar":
         hwp.Run("BreakPara")
 
 
 # 수식 삽입
-def insertHwpEquation(hwp, jsonObjForHwp):
+def insert_hwp_equation(hwp, json_for_hwp):
     hwp.HAction.GetDefault("EquationCreate", hwp.HParameterSet.HEqEdit.HSet)
     hwp.HParameterSet.HEqEdit.Version = "Equation Version 60"
     hwp.HParameterSet.HEqEdit.EqFontName = "HancomEQN"
-    hwp.HParameterSet.HEqEdit.string = jsonObjForHwp["contents"]
+    hwp.HParameterSet.HEqEdit.string = json_for_hwp["contents"]
     hwp.HParameterSet.HEqEdit.BaseUnit = hwp.PointToHwpUnit(9.0)  # 수식 폰트 크기 : 30
     hwp.HParameterSet.HEqEdit.TreatAsChar = 1  # 글자처럼 취급
     hwp.HAction.Execute("EquationCreate", hwp.HParameterSet.HEqEdit.HSet)  # 폰트이상함
@@ -189,43 +190,43 @@ def insertHwpEquation(hwp, jsonObjForHwp):
 
 
 # 표 생성 함수
-def insertHwpTable(hwp, jsonObjForHwp):
+def insert_hwp_table(hwp, json_for_hwp):
     hwp.HAction.GetDefault("TableCreate", hwp.HParameterSet.HTableCreation.HSet)  # 표 생성 시작
-    hwp.HParameterSet.HTableCreation.Rows = jsonObjForHwp["rowCnt"]  # 행 갯수
-    hwp.HParameterSet.HTableCreation.Cols = jsonObjForHwp["colCnt"]  # 열 갯수
+    hwp.HParameterSet.HTableCreation.Rows = json_for_hwp["rowCnt"]  # 행 갯수
+    hwp.HParameterSet.HTableCreation.Cols = json_for_hwp["colCnt"]  # 열 갯수
     hwp.HParameterSet.HTableCreation.WidthType = 2  # 너비 지정(0:단에맞춤, 1:문단에맞춤, 2:임의값)
     hwp.HParameterSet.HTableCreation.HeightType = 0  # 높이 지정(0:자동, 1:임의값)
 
-    tbWidth = 0  # 표 전체 너비
-    for colWidth in jsonObjForHwp["colWidthList"]:
-        tbWidth += colWidth
+    td_width = 0  # 표 전체 너비
+    for colWidth in json_for_hwp["colWidthList"]:
+        td_width += colWidth
 
     # 표 셀 너비 비율에 따라 셋팅
-    tbColRatioList = []
-    for colWidth in jsonObjForHwp["colWidthList"]:
-        tbColRatioList.append(82 * colWidth / tbWidth - 1)
+    table_column_ratios = []
+    for colWidth in json_for_hwp["colWidthList"]:
+        table_column_ratios.append(82 * colWidth / td_width - 1)
 
     hwp.HParameterSet.HTableCreation.WidthValue = hwp.MiliToHwpUnit(
-        82.0 - 1 * jsonObjForHwp["colCnt"])  # 표 너비, 셀 여백 빼주기
+        82.0 - 1 * json_for_hwp["colCnt"])  # 표 너비, 셀 여백 빼주기
 
     # hwp.HParameterSet.HTableCreation.HeightValue = hwp.MiliToHwpUnit(13)  # 표 높이
     # 열 생성
-    hwp.HParameterSet.HTableCreation.CreateItemArray("ColWidth", jsonObjForHwp["colCnt"])
-    for i in range(len(jsonObjForHwp["colWidthList"])):
-        if jsonObjForHwp["contentsDetailType"] == "table":
-            hwp.HParameterSet.HTableCreation.ColWidth.SetItem(i, hwp.MiliToHwpUnit(tbColRatioList[i]))  # 열 너비 셋팅
+    hwp.HParameterSet.HTableCreation.CreateItemArray("ColWidth", json_for_hwp["colCnt"])
+    for i in range(len(json_for_hwp["colWidthList"])):
+        if json_for_hwp["contentsDetailType"] == "table":
+            hwp.HParameterSet.HTableCreation.ColWidth.SetItem(i, hwp.MiliToHwpUnit(table_column_ratios[i]))  # 열 너비 셋팅
         else:
             hwp.HParameterSet.HTableCreation.ColWidth.SetItem(i, hwp.MiliToHwpUnit(
-                int(jsonObjForHwp["colWidthList"][i] * 0.264)))  # 열 너비 셋팅
+                int(json_for_hwp["colWidthList"][i] * 0.264)))  # 열 너비 셋팅
 
     # 행 생성
-    # hwp.HParameterSet.HTableCreation.CreateItemArray("RowHeight", jsonObjForHwp["rowCnt"])  # 행 생성
-    # for i in range(jsonObjForHwp["rowCnt"]):
+    # hwp.HParameterSet.HTableCreation.CreateItemArray("RowHeight", json_for_hwp["rowCnt"])  # 행 생성
+    # for i in range(json_for_hwp["rowCnt"]):
     # hwp.HParameterSet.HTableCreation.RowHeight.SetItem(i, hwp.MiliToHwpUnit(6.0))  # 1행
 
     hwp.HParameterSet.HTableCreation.TableProperties.Width = hwp.MiliToHwpUnit(82.0)  # 표 너비
 
-    if jsonObjForHwp["contentsDetailType"] == "table":
+    if json_for_hwp["contentsDetailType"] == "table":
         hwp.HParameterSet.HTableCreation.TableProperties.CellMarginTop = hwp.MiliToHwpUnit(1.3)  # 표 안 셀 위쪽 여백
         hwp.HParameterSet.HTableCreation.TableProperties.CellMarginBottom = hwp.MiliToHwpUnit(1.3)  # 표 안 셀 아래쪽 여백
         hwp.HParameterSet.HTableCreation.TableProperties.CellMarginLeft = hwp.MiliToHwpUnit(0.5)  # 표 안 셀 왼쪽 여백
@@ -240,7 +241,7 @@ def insertHwpTable(hwp, jsonObjForHwp):
 
 
 # 표 속성 셋팅 함수
-def setHwpTableProperty(hwp, contentsDetailType, borderStyle):
+def set_hwp_table_property(hwp, contents_detail_type, border_style):
     # 글씨 크기 9pt 설정
     # hwp.HAction.Run("Cancel")  # 셀선택 해제
     # rowPosition = int(re.sub(r'[^0-9]', '', hwp.KeyIndicator()[-1][1:].split(")")[0])) #hwp.KeyIndicator()는 상태바의 정보 추출 함수
@@ -248,10 +249,10 @@ def setHwpTableProperty(hwp, contentsDetailType, borderStyle):
     hwp.HAction.Run("TableCellBlockRow")  # 표 현재 행 선택
     hwp.HAction.Run("TableColPageUp")  # 표 전체 선택
 
-    setFont(hwp, 900);  # 폰트 크기 9pt로 설정
+    set_font(hwp, 900)  # 폰트 크기 9pt로 설정
 
     # 표 안쪽 테두리 여부
-    if borderStyle == "innerNone":
+    if border_style == "innerNone":
         # hwp.HAction.Run("TableCellBorderAll")
         hwp.HAction.GetDefault("CellBorder", hwp.HParameterSet.HCellBorderFill.HSet)
         hwp.HParameterSet.HCellBorderFill.TypeHorz = hwp.HwpLineType("None")
@@ -262,17 +263,17 @@ def setHwpTableProperty(hwp, contentsDetailType, borderStyle):
         hwp.HParameterSet.HCellBorderFill.BorderTypeLeft = hwp.HwpLineType("Solid")  # 좌측 투명
         hwp.HAction.Execute("CellBorder", hwp.HParameterSet.HCellBorderFill.HSet)
         # hwp.HAction.Run("TableCellBorderInside")  # 표 테두리 토글(있음, 없음) nx1 표에서 정상 작동 안
-    elif borderStyle == "allNone":
+    elif border_style == "allNone":
         hwp.HAction.Run("TableCellBorderAll")  # 표 테두리 토글(있음, 없음)
 
-    if contentsDetailType == "table":
+    if contents_detail_type == "table":
         # 표 바깥 여백 및 글씨처럼 취급 설정
         hwp.HAction.GetDefault("ShapeObjDialog", hwp.HParameterSet.HShapeObject.HSet)
         hwp.HParameterSet.HShapeObject.HSet.SetItem("TreatAsChar", True)
         hwp.HParameterSet.HShapeObject.HSet.SetItem("OutsideMarginTop", hwp.MiliToHwpUnit(1.0))
         hwp.HParameterSet.HShapeObject.HSet.SetItem("OutsideMarginBottom", hwp.MiliToHwpUnit(1.0))
         hwp.HAction.Execute("ShapeObjDialog", hwp.HParameterSet.HShapeObject.HSet)
-    elif contentsDetailType == "condBox":
+    elif contents_detail_type == "condBox":
         # 표 바깥 여백 및 글씨처럼 취급 설정
         hwp.HAction.GetDefault("ShapeObjDialog", hwp.HParameterSet.HShapeObject.HSet)
         hwp.HParameterSet.HShapeObject.HSet.SetItem("TreatAsChar", True)
@@ -280,7 +281,8 @@ def setHwpTableProperty(hwp, contentsDetailType, borderStyle):
         hwp.HParameterSet.HShapeObject.HSet.SetItem("OutsideMarginBottom", hwp.MiliToHwpUnit(0.0))
         hwp.HAction.Execute("ShapeObjDialog", hwp.HParameterSet.HShapeObject.HSet)
 
-def setTableCellBorder(hwp, top, bottom, left, right):
+
+def set_table_cell_border(hwp, top, bottom, left, right):
     hwp.HAction.GetDefault("CellBorder", hwp.HParameterSet.HCellBorderFill.HSet)
     hwp.HParameterSet.HCellBorderFill.TypeHorz = hwp.HwpLineType("None")
     hwp.HParameterSet.HCellBorderFill.TypeVert = hwp.HwpLineType("None")
@@ -290,8 +292,9 @@ def setTableCellBorder(hwp, top, bottom, left, right):
     hwp.HParameterSet.HCellBorderFill.BorderTypeRight = hwp.HwpLineType(right)  # 우측 투명
     hwp.HAction.Execute("CellBorder", hwp.HParameterSet.HCellBorderFill.HSet)
 
-#학습지 제목 타이틀 입력
-def writeContentsTitleForHwp(hwp, jsonObjForHwp):
+
+# 학습지 제목 타이틀 입력
+def write_contents_title_for_hwp(hwp, json_for_hwp):
     hwp.HAction.GetDefault("TableCreate", hwp.HParameterSet.HTableCreation.HSet)  # 표 생성 시작
     hwp.HParameterSet.HTableCreation.Rows = 1
     hwp.HParameterSet.HTableCreation.Cols = 3
@@ -314,10 +317,10 @@ def writeContentsTitleForHwp(hwp, jsonObjForHwp):
     hwp.HParameterSet.HShapeObject.HSet.SetItem("OutsideMarginBottom", hwp.MiliToHwpUnit(5.0))
     hwp.HAction.Execute("ShapeObjDialog", hwp.HParameterSet.HShapeObject.HSet)
 
-    setTableCellBorder(hwp, "Solid", "Solid", "None", "Solid");
+    set_table_cell_border(hwp, "Solid", "Solid", "None", "Solid")
 
     # 이미지 추가
-    hwp.InsertPicture(os.getcwd()+"/resources/img/favicon.png", True, 1, False, False, 0, 20, 20)
+    hwp.InsertPicture(os.getcwd() + "/resources/img/favicon.png", True, 1, False, False, 0, 20, 20)
 
     hwp.FindCtrl()  # 캐럿 앞(또는 뒤) 객체 선택
 
@@ -342,65 +345,67 @@ def writeContentsTitleForHwp(hwp, jsonObjForHwp):
     hwp.Run("ParagraphShapeAlignCenter")
 
     hwp.HAction.GetDefault("InsertText", hwp.HParameterSet.HInsertText.HSet)
-    hwp.HParameterSet.HInsertText.Text = jsonObjForHwp["contentsTitle"]["title"]
+    hwp.HParameterSet.HInsertText.Text = json_for_hwp["contentsTitle"]["title"]
     hwp.HAction.Execute("InsertText", hwp.HParameterSet.HInsertText.HSet)
 
     hwp.Run("Cancel")
     hwp.Run("TableRightCell")
 
-    setTableCellBorder(hwp, "Solid", "Solid", "Solid", "None");
+    set_table_cell_border(hwp, "Solid", "Solid", "Solid", "None")
 
     # 출제자, 출제일, 문항수 출력
     hwp.HAction.GetDefault("InsertText", hwp.HParameterSet.HInsertText.HSet)
-    hwp.HParameterSet.HInsertText.Text = "출제자 : "+jsonObjForHwp["contentsTitle"]["owner"]
+    hwp.HParameterSet.HInsertText.Text = "출제자 : " + json_for_hwp["contentsTitle"]["owner"]
     hwp.HAction.Execute("InsertText", hwp.HParameterSet.HInsertText.HSet)
     hwp.Run('BreakPara')
 
     hwp.HAction.GetDefault("InsertText", hwp.HParameterSet.HInsertText.HSet)
-    hwp.HParameterSet.HInsertText.Text = "출제일 : "+datetime.today().strftime("%Y-%m-%d")
+    hwp.HParameterSet.HInsertText.Text = "출제일 : " + datetime.today().strftime("%Y-%m-%d")
     hwp.HAction.Execute("InsertText", hwp.HParameterSet.HInsertText.HSet)
     hwp.Run('BreakPara')
 
     hwp.HAction.GetDefault("InsertText", hwp.HParameterSet.HInsertText.HSet)
-    hwp.HParameterSet.HInsertText.Text = "문항수 : "+jsonObjForHwp["contentsTitle"]["conCnt"]
+    hwp.HParameterSet.HInsertText.Text = "문항수 : " + json_for_hwp["contentsTitle"]["conCnt"]
     hwp.HAction.Execute("InsertText", hwp.HParameterSet.HInsertText.HSet)
 
     hwp.Run("MoveDocEnd")
+
+
 # 한컴 컨텐츠 쓰기 함수
-def writeContentsForHwp(hwp, jsonObjForHwp):
-    if jsonObjForHwp["contentsType"] == "img":
-        insertHwpImg(hwp, jsonObjForHwp)
-    elif jsonObjForHwp["contentsType"] == "text":
-        insertHwpText(hwp, jsonObjForHwp);
-    elif jsonObjForHwp["contentsType"] == "underLine":
-        executeUnderLine(hwp)
-    elif jsonObjForHwp["contentsType"] == "CharShapeBold":
+def write_contents_to_hwp(hwp, json_for_hwp):
+    if json_for_hwp["contentsType"] == "img":
+        insert_hwp_img(hwp, json_for_hwp)
+    elif json_for_hwp["contentsType"] == "text":
+        insert_hwp_text(hwp, json_for_hwp)
+    elif json_for_hwp["contentsType"] == "underLine":
+        execute_underline(hwp)
+    elif json_for_hwp["contentsType"] == "CharShapeBold":
         hwp.Run("CharShapeBold")
-    elif jsonObjForHwp["contentsType"] == "BreakPara":
+    elif json_for_hwp["contentsType"] == "BreakPara":
         hwp.Run("BreakPara")
-    elif jsonObjForHwp["contentsType"] == "BreakPara4":
-        hwp.Run("BreakPara")
-        hwp.Run("BreakPara")
+    elif json_for_hwp["contentsType"] == "BreakPara4":
         hwp.Run("BreakPara")
         hwp.Run("BreakPara")
-    elif jsonObjForHwp["contentsType"] == "alignLeft":
+        hwp.Run("BreakPara")
+        hwp.Run("BreakPara")
+    elif json_for_hwp["contentsType"] == "alignLeft":
         hwp.Run("ParagraphShapeAlignLeft")
-    elif jsonObjForHwp["contentsType"] == "alignRight":
+    elif json_for_hwp["contentsType"] == "alignRight":
         hwp.Run("ParagraphShapeAlignRight")
-    elif jsonObjForHwp["contentsType"] == "alignCenter":
+    elif json_for_hwp["contentsType"] == "alignCenter":
         hwp.Run("ParagraphShapeAlignCenter")
-    elif jsonObjForHwp["contentsType"] == "formul":
-        insertHwpEquation(hwp, jsonObjForHwp)
-    elif jsonObjForHwp["contentsType"] == "insertMizu":
+    elif json_for_hwp["contentsType"] == "formul":
+        insert_hwp_equation(hwp, json_for_hwp)
+    elif json_for_hwp["contentsType"] == "insertMizu":
         hwp.Run("InsertEndnote")
-    elif jsonObjForHwp["contentsType"] == "moveDocEnd":
+    elif json_for_hwp["contentsType"] == "moveDocEnd":
         hwp.MovePos(3)
-    elif jsonObjForHwp["contentsType"] == "table":
-        insertHwpTable(hwp, jsonObjForHwp)
-        i = 0;
-        for cellObj in jsonObjForHwp["contents"]:
+    elif json_for_hwp["contentsType"] == "table":
+        insert_hwp_table(hwp, json_for_hwp)
+        i = 0
+        for cellObj in json_for_hwp["contents"]:
             for cellInnerValObj in cellObj:
-                writeContentsForHwp(hwp, cellInnerValObj["contents"])
+                write_contents_to_hwp(hwp, cellInnerValObj["contents"])
             # 표 정렬
             # 실제 json 객체에는 셀 안의 contents에 대해 align 속성 있지만 셀 안의 정렬 속성 모두 같으므로 0번째 idx로만 설
             if cellObj[0]["align"] == "alignLeft":
@@ -411,16 +416,16 @@ def writeContentsForHwp(hwp, jsonObjForHwp):
                 hwp.Run("ParagraphShapeAlignCenter")
 
             i = i + 1
-            if (i == len(jsonObjForHwp["contents"])):  # 마지막 셀인 경우
+            if i == len(json_for_hwp["contents"]):  # 마지막 셀인 경우
                 # 표 속성 셋팅
-                setHwpTableProperty(hwp, jsonObjForHwp["contentsDetailType"], jsonObjForHwp["borderStyle"])
+                set_hwp_table_property(hwp, json_for_hwp["contentsDetailType"], json_for_hwp["borderStyle"])
 
                 hwp.Run("CloseEx")  # 표 밖으로 빠져 나오기
                 hwp.Run("MoveLineEnd")  # 표 오른쪽으로 커서 이동
 
-                if jsonObjForHwp["contentsDetailType"] == "table":
+                if json_for_hwp["contentsDetailType"] == "table":
                     hwp.Run("MoveDocEnd")
-                elif jsonObjForHwp["contentsDetailType"] == "condBox":
+                elif json_for_hwp["contentsDetailType"] == "condBox":
                     # hwp 표 삽입의 경우 위아래 줄바꿈이 자동으로 되는 것 같음
                     # 조건 박스의 경우 위아래 줄바꿈 제거
                     hwp.Run("Delete")  # 표 아래 줄바꿈 제거
@@ -432,92 +437,88 @@ def writeContentsForHwp(hwp, jsonObjForHwp):
 
 
 # 고정폭 빈칸 모드
-def fixedSpaceMode(hwp, findStr, replaceStr):
+def replace_fixed_space(hwp, target_text, replace_text):
     hwp.HAction.GetDefault("AllReplace", hwp.HParameterSet.HFindReplace.HSet)
-    hwp.HParameterSet.HFindReplace.FindString = findStr
-    hwp.HParameterSet.HFindReplace.ReplaceString = replaceStr
+    hwp.HParameterSet.HFindReplace.FindString = target_text
+    hwp.HParameterSet.HFindReplace.ReplaceString = replace_text
     hwp.HParameterSet.HFindReplace.Direction = 2
     hwp.HParameterSet.HFindReplace.IgnoreMessage = 1
     hwp.HAction.Execute("AllReplace", hwp.HParameterSet.HFindReplace.HSet)
 
 
+def make_hwp_controller(json_data):
+    json_list_for_hwp = json.loads(json_data)
+    hwp = make_hwp("좁게", "alignLeft", 900, 0)
+    set_multi_colum(hwp, 2, "SOLID")
+    set_page_num(hwp)
 
-def makeHwpController(jsonStr):
-    jsonArrForHwp = json.loads(jsonStr)
-    hwp = makeHwp("좁게", "alignLeft", 900, 0)
-    setMultiColLayout(hwp, 2, "SOLID")
-    setPageNum(hwp)
-
-    for jsonObjForHwp in jsonArrForHwp:
-        if "contentsType" in jsonObjForHwp:
-            writeContentsForHwp(hwp, jsonObjForHwp)
-        elif "contentsTitle"  in jsonObjForHwp:
-            writeContentsTitleForHwp(hwp, jsonObjForHwp)
-
+    for json_for_hwp in json_list_for_hwp:
+        if "contentsType" in json_for_hwp:
+            write_contents_to_hwp(hwp, json_for_hwp)
+        elif "contentsTitle" in json_for_hwp:
+            write_contents_title_for_hwp(hwp, json_for_hwp)
 
     # 띄어쓰기 간격이 달라 연속한 띄어쓰기는 폭이 더 좁은 고정폭 띄어쓰기로 변환
-    fixedSpaceMode(hwp, "   ", "^s^s^s")  # 홀수개
-    fixedSpaceMode(hwp, "  ", "^s^s")  # 짝수개
+    replace_fixed_space(hwp, "   ", "^s^s^s")  # 홀수개
+    replace_fixed_space(hwp, "  ", "^s^s")  # 짝수개
 
-    nowDate = str(datetime.now()).replace("-", "").replace(" ", "_").replace(":", "").replace(".", "_")
-    randNum = str(int(random.random() * 10 ** 9))
-    hwpFileName = "[N명의수학]나의 제작문제" + "_" + nowDate + "_" + randNum + ".hwp"
-    hwp.SaveAs(os.getcwd() + "\\userHwp\\" + hwpFileName)  # 기존 파일명+_n.hwp 로 저장"
+    now_date = str(datetime.now()).replace("-", "").replace(" ", "_").replace(":", "").replace(".", "_")
+    rand_num = str(int(random.random() * 10 ** 9))
+    hwp_file_name = "[N명의수학]나의 제작문제" + "_" + now_date + "_" + rand_num + ".hwp"
+    hwp.SaveAs(os.getcwd() + "\\userHwp\\" + hwp_file_name)  # 기존 파일명+_n.hwp 로 저장"
     hwp.XHwpDocuments.Item(0).Close(isDirty=False)  # 탭 닫기
     time.sleep(0.2)  # 0.2초 쉬어줌(꼭 필요)
     hwp.Quit()
 
-    return os.getcwd() + "\\userHwp\\" + hwpFileName
+    return os.getcwd() + "\\userHwp\\" + hwp_file_name
 
 
-def convertFormulToText(filename):
+def convert_formular_to_text(filename):
     BASE_DIR = os.getcwd() + "\\convertHwp"
     # 한/글 열기
     hwp = win32.gencache.EnsureDispatch("HWPFrame.HwpObject", pythoncom.CoInitialize())
     hwp.RegisterModule("FilePathCheckDLL", "FilePathCheckModule")
     hwp.XHwpWindows.Item(0).Visible = False
     hwp.Open(os.path.join(BASE_DIR, filename))
-    #확장자가 hwp가 아닌 경우 hwp로 포맷 변환하고 hwp파일로 편집하기
+    # 확장자가 hwp가 아닌 경우 hwp로 포맷 변환하고 hwp파일로 편집하기
     path, ext = os.path.splitext(filename)
-    if ext == ".hml" or ext == ".hwt" or ext == ".hwpx" or ext == ".hwtx" :
-        hwp.SaveAs(BASE_DIR+"\\"+path+".hwp")
+    if ext == ".hml" or ext == ".hwt" or ext == ".hwpx" or ext == ".hwtx":
+        hwp.SaveAs(BASE_DIR + "\\" + path + ".hwp")
         hwp.Save()
         time.sleep(0.2)  # 0.2초 쉬어줌(꼭 필요)
         hwp.Quit()
-        #기존 hwp확장자 아닌 한글 파일 제거
-        os.remove(BASE_DIR+"\\"+ filename)
-        #새로운 hwp파일로 편집 시작
+        # 기존 hwp확장자 아닌 한글 파일 제거
+        os.remove(BASE_DIR + "\\" + filename)
+        # 새로운 hwp파일로 편집 시작
         filename = path + ".hwp"
         hwp = win32.gencache.EnsureDispatch("HWPFrame.HwpObject", pythoncom.CoInitialize())
         hwp.RegisterModule("FilePathCheckDLL", "FilePathCheckModule")
         hwp.XHwpWindows.Item(0).Visible = False
         hwp.Open(os.path.join(BASE_DIR, filename))
 
-
-
     # 주석 저장(각주, 미주)
-    nowDate = str(datetime.now()).replace("-", "").replace(" ", "_").replace(":", "").replace(".", "_")
-    randNum = str(int(random.random() * 10 ** 9))
-    fileName = nowDate + "_" + randNum + ".hwp"
+    now_date = str(datetime.now()).replace("-", "").replace(" ", "_").replace(":", "").replace(".", "_")
+    rand_num = str(int(random.random() * 10 ** 9))
+    file_name = now_date + "_" + rand_num + ".hwp"
     hwp.HAction.GetDefault("SaveFootnote", hwp.HParameterSet.HSaveFootnote.HSet)
-    fileName = os.getcwd() + "\\convertHeaderFooterHwp\\" + fileName
-    hwp.HParameterSet.HSaveFootnote.HSet.SetItem('FileName', fileName)
+    file_name = os.getcwd() + "\\convertHeaderFooterHwp\\" + file_name
+    hwp.HParameterSet.HSaveFootnote.HSet.SetItem('FileName', file_name)
     hwp.HParameterSet.HSaveFootnote.HSet.SetItem('Flag', 3)
-    existFootNote = hwp.HAction.Execute("SaveFootnote", hwp.HParameterSet.HSaveFootnote.HSet)
+    exist_foot_note = hwp.HAction.Execute("SaveFootnote", hwp.HParameterSet.HSaveFootnote.HSet)
     time.sleep(0.2)  # 0.2초 쉬어줌(꼭 필요)
 
-    if(existFootNote):
+    if exist_foot_note:
         # 제일 하단에 주석(각주, 미주) 추가
         hwp.Run('MoveDocEnd')
         hwp.Run('BreakPara')
-        hwp.HAction.GetDefault("InsertFile", hwp.HParameterSet.HInsertFile.HSet);
+        hwp.HAction.GetDefault("InsertFile", hwp.HParameterSet.HInsertFile.HSet)
         option = hwp.HParameterSet.HInsertFile
-        option.filename = fileName
-        option.KeepSection = 0;
-        option.KeepCharshape = 1;
-        option.KeepParashape = 1;
-        option.KeepStyle = 1;
-        hwp.HAction.Execute("InsertFile", hwp.HParameterSet.HInsertFile.HSet);
+        option.filename = file_name
+        option.KeepSection = 0
+        option.KeepCharshape = 1
+        option.KeepParashape = 1
+        option.KeepStyle = 1
+        hwp.HAction.Execute("InsertFile", hwp.HParameterSet.HInsertFile.HSet)
         time.sleep(0.2)  # 0.2초 쉬어줌(꼭 필요)
 
         # 모든 각주를 미주로 변환
@@ -533,11 +534,11 @@ def convertFormulToText(filename):
         hwp.HParameterSet.HDeleteCtrls.DeleteCtrlType.SetItem(2, 14)  # 전체 미주 지우기
         hwp.HAction.Execute("DeleteCtrls", hwp.HParameterSet.HDeleteCtrls.HSet)
 
-        #주석 파일 제거
-        os.remove(fileName)
+        # 주석 파일 제거
+        os.remove(file_name)
         time.sleep(0.2)  # 0.2초 쉬어줌(꼭 필요)
 
-    #수식 가공 시작
+    # 수식 가공 시작
     hwp.Run('MoveDocBegin')
     """
     ctrl = hwp.HeadCtrl
@@ -554,9 +555,9 @@ def convertFormulToText(filename):
             추출수식 = 아이템셋.Item("VisualString").replace("\r\n", " ")
             hwp.Run("Delete")
             if (추출수식 != ""):
-                hwp.HAction.GetDefault("InsertText", hwp.HParameterSet.HInsertText.HSet);
-                hwp.HParameterSet.HInsertText.Text = "$strt/ " + 추출수식 + " $end/";
-                hwp.HAction.Execute("InsertText", hwp.HParameterSet.HInsertText.HSet);
+                hwp.HAction.GetDefault("InsertText", hwp.HParameterSet.HInsertText.HSet)
+                hwp.HParameterSet.HInsertText.Text = "$strt/ " + 추출수식 + " $end/"
+                hwp.HAction.Execute("InsertText", hwp.HParameterSet.HInsertText.HSet)
                 hwp.Run("MoveLineBegin")
         ctrl = ctrl.Next
     """
@@ -567,16 +568,16 @@ def convertFormulToText(filename):
     hwp.RunScriptMacro("OnScriptMacro_zocboCirlcleImg()", 0, 1)
     time.sleep(0.2)  # 0.2초 쉬어줌(꼭 필요)
 
-    #줄바꿈 처리 안되는 에러 해결
+    # 줄바꿈 처리 안되는 에러 해결
     hwp.Run('MoveDocBegin')
     hwp.HAction.GetDefault("AllReplace", hwp.HParameterSet.HFindReplace.HSet)
-    hwp.HParameterSet.HFindReplace.FindString = "^l"     #강제 줄나눔
-    hwp.HParameterSet.HFindReplace.ReplaceString = "^n"  #문단 끝
+    hwp.HParameterSet.HFindReplace.FindString = "^l"  # 강제 줄나눔
+    hwp.HParameterSet.HFindReplace.ReplaceString = "^n"  # 문단 끝
     hwp.HParameterSet.HFindReplace.Direction = 2
     hwp.HParameterSet.HFindReplace.IgnoreMessage = 1
     hwp.HAction.Execute("AllReplace", hwp.HParameterSet.HFindReplace.HSet)
 
-    #절댓값 변경(web에서 이 문자 못 받아들임)
+    # 절댓값 변경(web에서 이 문자 못 받아들임)
     hwp.Run('MoveDocBegin')
     hwp.HAction.GetDefault("AllReplace", hwp.HParameterSet.HFindReplace.HSet)
     hwp.HParameterSet.HFindReplace.FindString = ""
@@ -593,7 +594,7 @@ def convertFormulToText(filename):
     hwp.HParameterSet.HFindReplace.Direction = 2
     hwp.HParameterSet.HFindReplace.IgnoreMessage = 1
     hwp.HAction.Execute("AllReplace", hwp.HParameterSet.HFindReplace.HSet)
-    
+
     # 닮음기호 변경(web에서 이 문자 못 받아들임)
     hwp.Run('MoveDocBegin')
     hwp.HAction.GetDefault("AllReplace", hwp.HParameterSet.HFindReplace.HSet)
@@ -641,15 +642,14 @@ def convertFormulToText(filename):
     time.sleep(0.2)  # 0.2초 쉬어줌(꼭 필요)
     hwp.Quit()
 
-    #hwp to html
-    exefile = 'hwp5html'
-    folderName = BASE_DIR + "\\" + filename.split(".hwp")[0]
-    os.system(exefile+" "+BASE_DIR+"\\"+filename+" --output "+folderName)
+    # hwp to html
+    exe_file = 'hwp5html'
+    folder_name = BASE_DIR + "\\" + filename.split(".hwp")[0]
+    os.system(exe_file + " " + BASE_DIR + "\\" + filename + " --output " + folder_name)
     time.sleep(0.2)  # 0.2초 쉬어줌(꼭 필요)
-    #hwp파일 삭제
-    os.remove(BASE_DIR+"\\"+filename)
+    # hwp파일 삭제
+    os.remove(BASE_DIR + "\\" + filename)
     time.sleep(0.2)  # 0.2초 쉬어줌(꼭 필요)
-
 
     """
     similarArr = []
@@ -686,14 +686,13 @@ def convertFormulToText(filename):
     file.write(soup.prettify())
     file.close()
     """
-    #css파일 제거
-    cssFileList = os.listdir(folderName)
-    for item in cssFileList:
+    # css파일 제거
+    css_file_list = os.listdir(folder_name)
+    for item in css_file_list:
         if item.endswith(".css"):
-            os.remove(os.path.join(folderName, item))
+            os.remove(os.path.join(folder_name, item))
 
     # zip파일 만들기
-    shutil.make_archive(folderName, 'zip', folderName)
+    shutil.make_archive(folder_name, 'zip', folder_name)
 
-    return folderName
-
+    return folder_name
