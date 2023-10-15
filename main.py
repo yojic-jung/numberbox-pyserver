@@ -9,8 +9,8 @@ import random
 import os
 from apscheduler.schedulers.background import BackgroundScheduler
 
-server_addr = '127.0.0.1', 5555
-# server_addr = '172.31.0.87', 5555
+#server_addr = '127.0.0.1', 5555
+server_addr = '172.31.0.246', 5555
 
 th = []
 
