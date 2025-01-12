@@ -10,7 +10,7 @@ import os
 from apscheduler.schedulers.background import BackgroundScheduler
 
 #server_addr = '127.0.0.1', 5555
-server_addr = '172.31.0.246', 5555
+server_addr = '172.31.0.169', 5555
 
 th = []
 
@@ -55,7 +55,7 @@ def data_transfer(conn, s):
         mode = conn.recv(4)
         mode = mode.decode('utf-8')
         # Send a File over the network
-        if mode == "SEND":
+        if mode == "json":
             try:
                 data = conn.recv(4)
                 # 최초 4바이트는 전송할 데이터의 크기이다. 그 크기는 little big 엔디언으로 byte에서 int형식으로 변환한다.
@@ -80,7 +80,7 @@ def data_transfer(conn, s):
                 break
             # conn.send(bytes("DONE", 'utf-8'))
         # Chat between client and server
-        elif mode == "FILE":
+        elif mode == "hwp":
             data = conn.recv(4)
             # 최초 4바이트는 전송할 데이터의 크기이다. 그 크기는 little big 엔디언으로 byte에서 int형식으로 변환한다.
             # C#의 BitConverter는 big엔디언으로 처리된다.
