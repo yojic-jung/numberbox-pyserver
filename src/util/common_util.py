@@ -1,13 +1,11 @@
 import os
+import sys
 import shutil
 import stat
 from datetime import datetime
+import json
+import src.util.common_util as common_util
 
-import commonUtil
-
-
-# import numpy as np
-# import cv2
 
 def delete_old_files(path_target, time_unit, time_elapsed, ext):
     """path_target:삭제할 파일이 있는 디렉토리, days_elapsed:경과일수"""
@@ -53,7 +51,7 @@ def delete_old_folders(path_target, time_unit, time_elapsed):
             is_old = os.stat(path_target + "/" + f).st_mtime < timestamp_now - time_elapsed
             print(is_old)
             if is_old:
-                shutil.rmtree(path_target + "/" + f, onerror=commonUtil.remove_readonly)
+                shutil.rmtree(path_target + "/" + f, onerror=common_util.remove_readonly)
 
 
 def remove_readonly(fn, path, excinfo):
@@ -64,25 +62,14 @@ def remove_readonly(fn, path, excinfo):
         print("Skipped:", path, "because:\n", exc)
 
 
-"""
-def pixelDiff(img1, img2):
-    oneImg = cv2.imread(img1)
-    one = cv2.resize(oneImg, (512, 512))
-    twoImg = cv2.imread(img2)
-    two = cv2.resize(twoImg, (512, 512))
-
-    pix = np.array(one)
-    pix2 = np.array(two)
-    a = []
-    b = []
+def safe_json_deserializer(m):
     try:
-        for y in range(0, 512):
-            for x in range(0, 512):
-                a.append(int((abs(int(pix[x][y][0])-int(pix2[x][y][0]))+abs(int(pix[x][y][1])-int(pix2[x][y][1]))
-                              +abs(int(pix[x][y][2])-int(pix2[x][y][2])))/3))
-            b.append(sum(a, 0.0)/len(a))
-            a = []
-    except:
-        b=[100, 100, 100]
-    return (sum(b, 0.0)/len(b))
-"""
+        return json.loads(m.decode('utf-8'))
+    except Exception as e:
+        print(f"⚠️ JSON 디코딩 실패 - 무시됨: {m} | 에러: {e}")
+        return None
+
+
+def get_resource_path() -> str:
+    root = os.environ.get("PROJECT_ROOT", os.getcwd())  # 없으면 현재 경로
+    return os.path.join(root, "resources")

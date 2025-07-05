@@ -15,6 +15,7 @@ import random
 import shutil
 import json
 import time
+import src.util.common_util as common_util
 
 
 def make_hwp(page_padding_mode, align, font_size, char_spacing):
@@ -464,17 +465,18 @@ def make_hwp_controller(json_data):
 
     now_date = str(datetime.now()).replace("-", "").replace(" ", "_").replace(":", "").replace(".", "_")
     rand_num = str(int(random.random() * 10 ** 9))
-    hwp_file_name = "[N명의수학]나의 제작문제" + "_" + now_date + "_" + rand_num + ".hwp"
-    hwp.SaveAs(os.getcwd() + "\\userHwp\\" + hwp_file_name)  # 기존 파일명+_n.hwp 로 저장"
+    hwp_file_name = common_util.get_resource_path() + "\\userHwp\\" + "[N명의수학]나의 제작문제" + "_" + now_date + "_" + rand_num + ".hwp"
+    hwp.SaveAs(hwp_file_name)  # 기존 파일명+_n.hwp 로 저장"
     hwp.XHwpDocuments.Item(0).Close(isDirty=False)  # 탭 닫기
     time.sleep(0.2)  # 0.2초 쉬어줌(꼭 필요)
     hwp.Quit()
 
-    return os.getcwd() + "\\userHwp\\" + hwp_file_name
+    return hwp_file_name
 
 
 def convert_formular_to_text(filename):
-    BASE_DIR = os.getcwd() + "\\convertHwp"
+    print(filename)
+    BASE_DIR = common_util.get_resource_path() + "\\convertHwp"
     # 한/글 열기
     hwp = win32.gencache.EnsureDispatch("HWPFrame.HwpObject", pythoncom.CoInitialize())
     hwp.RegisterModule("FilePathCheckDLL", "FilePathCheckModule")
@@ -496,6 +498,7 @@ def convert_formular_to_text(filename):
         hwp.XHwpWindows.Item(0).Visible = False
         hwp.Open(os.path.join(BASE_DIR, filename))
 
+    print(filename)
     # 주석 저장(각주, 미주)
     now_date = str(datetime.now()).replace("-", "").replace(" ", "_").replace(":", "").replace(".", "_")
     rand_num = str(int(random.random() * 10 ** 9))
