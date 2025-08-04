@@ -37,11 +37,11 @@ def process_message(message, consumer):
         else:
             print(f"Unknown topic: {message.topic}")
 
-        # ✅ 처리 성공 시 비동기 커밋
+        # 처리 성공 시 비동기 커밋
         consumer.commit_async()
 
     except (KafkaError, botocore.exceptions.BotoCoreError, botocore.exceptions.ClientError) as e:
-        # ✅ 재시도 대상 예외
+        # 재시도 대상 예외
         retry_count = int(dict(message.headers).get('retry_count', b'0').decode())
         if retry_count == 0:
             next_topic = 'retry_topic_1'
@@ -59,7 +59,7 @@ def process_message(message, consumer):
         print(f"[RETRY] 메시지 재전송 → {next_topic}, 오류: {e}")
 
     except Exception as e:
-        # ✅ 기타 예외 → 바로 DLQ
+        # 기타 예외 → 바로 DLQ
         producer.send('dlq_topic', key=message.key, value=message.value, headers=[('reason', str(e).encode())])
         producer.flush()
         consumer.commit_sync()
