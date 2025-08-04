@@ -5,19 +5,26 @@ from datetime import datetime
 import os
 import uuid
 from src.service import s3_service
-import src.kafka.kafka_client as kafka_client
+from kafka import KafkaProducer
 import shutil
 import src.util.common_util as common_util
 
 
 class HwpToHtmlService:
     def __init__(self):
-        self.producer = kafka_client.create_producer()
+        self.producer = KafkaProducer(
+            bootstrap_servers=['localhost:19092','localhost:19093','localhost:19094'],
+            value_serializer=lambda v: v.encode('utf-8')
+        )
         self.s3 = s3_service.S3Service()
 
     def convert_hwp_to_html(self, event):
         try:
             # 이벤트 수신
+            if isinstance(event, str):
+                import json
+                event = json.loads(event)
+                print("Parsed event:", event)
             file_id = event['id']
             file_key = event['fileName']
             print(f" 수신된 메시지: id={file_id}, key={file_key}")

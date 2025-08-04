@@ -1,8 +1,8 @@
 # main.py
 
 from apscheduler.schedulers.background import BackgroundScheduler
-from src.kafka import kafka_client
 from kafka import KafkaConsumer
+from kafka import KafkaProducer
 from src.scheduler import job_scheduler
 from src.service.json_to_hwp_service import JsonToHwpService
 from src.service.hwp_to_html_service import HwpToHtmlService
@@ -21,18 +21,21 @@ scheduler.start()
 scheduler.add_job(job_scheduler.delete_old_file_folder, 'cron', hour='04', minute='00', id="job_1")
 
 # Kafka Producer는 공유 인스턴스
-producer = kafka_client.create_producer()
+producer = KafkaProducer(
+        bootstrap_servers=['localhost:19092','localhost:19093','localhost:19094'],
+        value_serializer=lambda v: v.encode('utf-8')
+    )
 
 # 서비스 클래스 인스턴스 생성
 json_service = JsonToHwpService()
 html_service = HwpToHtmlService()
 
-
 def process_message(message, consumer):
     try:
-        if message.topic == 'jsonToHwp':
+        if message.topic == 'numberbox.convert.jsonToHwp.request':
+            print("토픽 메시지 처리")
             json_service.convert_json_to_hwp(message.value)
-        elif message.topic == 'hwpToHtml':
+        elif message.topic == 'numberbox.convert.hwpToHtml.request':
             html_service.convert_hwp_to_html(message.value)
         else:
             print(f"Unknown topic: {message.topic}")
@@ -69,9 +72,9 @@ def process_message(message, consumer):
 
 def start_consumer_thread():
     consumer = KafkaConsumer(
-        'jsonToHwp',
-        'hwpToHtml',
-        bootstrap_servers=['localhost:9092'],
+        'numberbox.convert.jsonToHwp.request',
+        'numberbox.convert.hwpToHtml.request',
+        bootstrap_servers=['localhost:19092','localhost:19093','localhost:19094'],
         group_id='numberbox-convert-group',
         enable_auto_commit=False,
         auto_offset_reset='earliest',
