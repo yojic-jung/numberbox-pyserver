@@ -16,43 +16,32 @@ class JsonToHwpService:
         self.s3 = s3_service.S3Service()
 
     def convert_json_to_hwp(self, event):
-        try:
-            # 이벤트 수신
-            print(event)
-            if isinstance(event, str):
-                import json
-                event = json.loads(event)
-                print("Parsed event:", event)
+        # 이벤트 수신
+        if isinstance(event, str):
+            import json
+            event = json.loads(event)
+            print("Parsed event:", event)
 
-            file_id = event['id']
-            file_key = event['fileName']
-            print(f" 수신된 메시지: id={file_id}, key={file_key}")
+        file_id = event['id']
+        file_key = event['fileName']
 
-            # S3에서 json 파일 다운로드
-            json_contents = self.s3.get_file_contents(file_key)
-            print(f" S3에서 파일 다운로드 완료: {file_key}")
+        # S3에서 json 파일 다운로드
+        json_contents = self.s3.get_file_contents(file_key)
 
-            # HWP 변환 로직 시작
+        # HWP 변환 로직 시작
+        hwp_path = make_hwp_controller(json_contents)
 
-            hwp_path = make_hwp_controller(json_contents)
-            print(f" HWP 생성 완료: {hwp_path}")
+        # S3 업로드 - 완성된 hwp 파일
+        upload_file_name = os.path.basename(hwp_path)
+        date_prefix = datetime.now().strftime('%Y/%m')
+        upload_key = f'jsonToHwpComplete/{date_prefix}/{upload_file_name}'
+        self.s3.upload_file(hwp_path, upload_key)
 
-            # S3 업로드 - 완성된 hwp 파일
-            upload_file_name = os.path.basename(hwp_path)
-            print(upload_file_name)
-            date_prefix = datetime.now().strftime('%Y/%m')
-            upload_key = f'jsonToHwpComplete/{date_prefix}/{upload_file_name}'
-            print(upload_key)
-            self.s3.upload_file(hwp_path, upload_key)
+        # 완료 이벤트 발행(id, 완성된 hwp 파일 s3 주소)
+        completed_event = {
+            'id': file_id,
+            'fileName': upload_key,
+        }
+        self.producer.send('jsonToHwpComplete', value=completed_event)
+        self.producer.flush()  # 즉시 전송 보장
 
-            # 완료 이벤트 발행(id, 완성된 hwp 파일 s3 주소)
-            completed_event = {
-                'id': file_id,
-                'fileName': upload_key,
-            }
-            self.producer.send('jsonToHwpComplete', value=completed_event)
-            self.producer.flush()  # 즉시 전송 보장
-            print(f" HWP 생성 완료 이벤트 발행")
-
-        except Exception as e:
-            print(f" 처리 중 오류 발생: {e}")

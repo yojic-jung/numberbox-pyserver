@@ -39,35 +39,25 @@ def process_message(message, consumer):
             html_service.convert_hwp_to_html(message.value)
         else:
             print(f"Unknown topic: {message.topic}")
-
         # 처리 성공 시 비동기 커밋
         consumer.commit_async()
 
     except (KafkaError, botocore.exceptions.BotoCoreError, botocore.exceptions.ClientError) as e:
         # 재시도 대상 예외
-        retry_count = int(dict(message.headers).get('retry_count', b'0').decode())
-        if retry_count == 0:
-            next_topic = 'retry_topic_1'
-        elif retry_count == 1:
-            next_topic = 'retry_topic_2'
-        else:
-            next_topic = 'dlq_topic'
+        print("retry")
 
-        headers = [('retry_count', str(retry_count + 1).encode())]
+        retry_topic = 'numberbox.convert.hwpToHtml.retry.request'
 
-        producer.send(next_topic, key=message.key, value=message.value, headers=headers)
+        producer.send(retry_topic, key=message.key, value=message.value)
         producer.flush()
-        consumer.commit_sync()
-
-        print(f"[RETRY] 메시지 재전송 → {next_topic}, 오류: {e}")
+        consumer.commit()
 
     except Exception as e:
+        print("dlq")
         # 기타 예외 → 바로 DLQ
-        producer.send('dlq_topic', key=message.key, value=message.value, headers=[('reason', str(e).encode())])
+        producer.send('numberbox.convert.hwpToHtml.dlq.request', key=message.key, value=message.value, headers=[('reason', str(e).encode())])
         producer.flush()
-        consumer.commit_sync()
-
-        print(f"[DLQ] 재처리 불가 예외, 메시지 DLQ 전송: {e}")
+        consumer.commit()
 
 
 def start_consumer_thread():
@@ -89,3 +79,8 @@ for _ in range(3):
     print("Kafka Consumer Thread 시작")
     t = threading.Thread(target=start_consumer_thread)
     t.start()
+
+# 메인 스레드 대기
+while True:
+    import time
+    time.sleep(60)
